@@ -29,6 +29,19 @@ pipeline {
             }
         }
 
+        stage('Integration tests (Testcontainers)') {
+            steps {
+                sh '''
+                docker run --rm \
+                  -v /var/run/docker.sock:/var/run/docker.sock \
+                  -v "$PWD":/app \
+                  -w /app \
+                  node:22 \
+                  npx mocha tests/integration/testcontainers.spec.js
+                '''
+            }
+        }
+
         stage('Build Docker image') {
             steps {
                 sh '''
