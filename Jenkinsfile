@@ -28,5 +28,32 @@ pipeline {
                 '''
             }
         }
+
+        stage('Build Docker image') {
+            steps {
+                sh '''
+                docker build -t poc-calculator .
+                '''
+            }
+        }
+
+        stage('Run app container') {
+            steps {
+                sh '''
+                docker run -d \
+                  --name poc-calculator \
+                  --rm \
+                  -p 8081:3000 \
+                  poc-calculator
+                '''
+            }
+        }
+    }
+
+    post {
+        always {
+            // Intentamos parar el contenedor; si no existe, no pasa nada
+            sh 'docker stop poc-calculator || true'
+        }
     }
 }
