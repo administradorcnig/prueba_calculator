@@ -60,11 +60,23 @@ pipeline {
                 '''
             }
         }
+
+        stage('E2E tests (Cypress)') {
+            steps {
+                sh '''
+                docker run --rm \
+                  --network host \
+                  -v "$PWD":/e2e \
+                  -w /e2e \
+                  cypress/included:13.6.2 \
+                  npx cypress run --spec "cypress/e2e/calculator.cy.js"
+                '''
+            }
+        }
     }
 
     post {
         always {
-            // Intentamos parar el contenedor; si no existe, no pasa nada
             sh 'docker stop poc-calculator || true'
         }
     }
