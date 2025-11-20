@@ -86,6 +86,19 @@ pipeline {
                 '''
             }
         }
+
+        stage('Load tests (k6)') {
+    steps {
+        sh '''
+        docker run --rm \
+          --network host \
+          -v "$PWD/tests/k6":/scripts \
+          grafana/k6 \
+          run /scripts/loadtest.js
+        '''
+    }
+}
+
     }
 
     post {
