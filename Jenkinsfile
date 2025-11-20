@@ -6,6 +6,9 @@ pipeline {
             steps {
                 sh '''
                 docker run --rm \
+                  -e https_proxy=http://192.168.192.11:8080 \
+                  -e http_proxy=http://192.168.192.11:8080 \
+                  -e no_proxy=127.0.0.1,localhost,10.0.0.0/8,192.0.0.0/8 \
                   -v "$PWD":/app \
                   -w /app \
                   node:18 \
