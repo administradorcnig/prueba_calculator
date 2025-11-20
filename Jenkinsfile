@@ -94,7 +94,7 @@ pipeline {
           --network host \
           -v "$PWD/tests/k6":/scripts \
           grafana/k6 \
-          run /scripts/loadtest.js
+          run /scripts/complex_loadtest.js
         '''
     }
 }
