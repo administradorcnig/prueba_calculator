@@ -48,6 +48,18 @@ pipeline {
                 '''
             }
         }
+
+        stage('API tests (Newman)') {
+            steps {
+                sh '''
+                docker run --rm \
+                  --network host \
+                  -v "$PWD/tests/postman":/etc/newman \
+                  postman/newman \
+                  run /etc/newman/calculator.postman_collection.json
+                '''
+            }
+        }
     }
 
     post {
