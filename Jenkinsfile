@@ -22,7 +22,6 @@ pipeline {
 
     environment {
         // Nombre del proyecto/repositorio de GitHub
-        // Ajusta esto si tu repo se llama distinto
         project = 'prueba_calculator'
     }
 
@@ -37,11 +36,19 @@ pipeline {
                     echo "Entorno seleccionado: ${params.entornoDespliegue}"
 
                     // Descargar el repositorio desde GitHub
-                    // Usa tus credenciales 'administradorCNIG' como en el ejemplo que te funciona
                     git branch: params.RAMA_DESPLIEGUE,
                         credentialsId: 'administradorCNIG',
                         url: "https://github.com/administradorcnig/${project}.git"
                 }
+            }
+        }
+
+        stage('Info código') {
+            steps {
+                sh '''
+                echo "Último commit en el workspace:"
+                git log -1 --oneline || echo "No hay historial de git"
+                '''
             }
         }
 
@@ -60,31 +67,44 @@ pipeline {
             }
         }
 
-
         stage('Build Docker image') {
             steps {
-                sh '''
-                docker build -t poc-calculator .
-                '''
+                script {
+                    def imageTag = env.BUILD_NUMBER
+
+                    sh """
+                    docker build \
+                      -t poc-calculator:${imageTag} \
+                      -t poc-calculator:latest \
+                      .
+                    """
+
+                    // Guardamos el tag en env por si hace falta en otros stages
+                    env.IMAGE_TAG = imageTag
+                }
             }
         }
 
         stage('Run app container') {
             steps {
-                sh '''
-                docker run -d \
-                  --name poc-calculator \
-                  --rm \
-                  -p 8081:3000 \
-                  poc-calculator
-                '''
+                script {
+                    // Por si hubiera un contenedor viejo colgado
+                    sh 'docker stop poc-calculator || true'
+
+                    sh """
+                    docker run -d \
+                      --name poc-calculator \
+                      --rm \
+                      -p 8081:3000 \
+                      poc-calculator:${IMAGE_TAG}
+                    """
+                }
             }
         }
-
+    }
 
     post {
         always {
-
             sh 'docker stop poc-calculator || true'
 
             cleanWs(cleanWhenNotBuilt: false,
