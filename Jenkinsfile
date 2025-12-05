@@ -16,26 +16,23 @@ pipeline {
     }
 
     options {
-        // Nos saltamos el checkout por defecto ya que vamos a eliminar el workspace
         skipDefaultCheckout(true)
     }
 
     environment {
-        // Nombre del proyecto/repositorio de GitHub
         project = 'prueba_calculator'
     }
 
     stages {
+
         stage('Checkout desde GitHub') {
             steps {
                 script {
-                    // Limpiamos el workspace
                     cleanWs()
 
                     echo "Rama seleccionada: ${params.RAMA_DESPLIEGUE}"
                     echo "Entorno seleccionado: ${params.entornoDespliegue}"
 
-                    // Descargar el repositorio desde GitHub
                     git branch: params.RAMA_DESPLIEGUE,
                         credentialsId: 'administradorCNIG',
                         url: "https://github.com/administradorcnig/${project}.git"
@@ -43,21 +40,32 @@ pipeline {
             }
         }
 
-        stage('Debug index.html en workspace') {
-    steps {
-        sh '''
-        echo "Contenido del botón en public/index.html:"
-        grep -n "button id=\\"four\\"" public/index.html || echo "No se encontró el botón en public/index.html"
-        '''
-    }
-}
-
-
-        stage('Info código') {
+        // ⭐ NUEVO STAGE: aquí sabremos EN QUÉ MÁQUINA se está ejecutando el job
+        stage('Info del nodo y su IP') {
             steps {
                 sh '''
-                echo "Último commit en el workspace:"
-                git log -1 --oneline || echo "No hay historial de git"
+                echo "======================================"
+                echo "NODO donde se está ejecutando el build"
+                echo "======================================"
+                echo ""
+                echo "Hostname del nodo:"
+                hostname
+                echo ""
+                echo "IPs del nodo:"
+                hostname -I || ip addr || ifconfig || echo "No se puede obtener IP"
+                echo ""
+                echo "IMPORTANTE:"
+                echo "Accede a tu aplicación en: http://<IP_QUE_SALGA_AQUI>:8081/"
+                echo "======================================"
+                '''
+            }
+        }
+
+        stage('Debug index.html en workspace') {
+            steps {
+                sh '''
+                echo "Contenido del botón en public/index.html (workspace):"
+                grep -n 'button id="four"' public/index.html || echo "No se encontró el botón"
                 '''
             }
         }
@@ -84,21 +92,31 @@ pipeline {
 
                     sh """
                     docker build \
+                      --no-cache \
                       -t poc-calculator:${imageTag} \
                       -t poc-calculator:latest \
                       .
                     """
 
-                    // Guardamos el tag en env por si hace falta en otros stages
                     env.IMAGE_TAG = imageTag
                 }
+            }
+        }
+
+        // Debug dentro de la imagen
+        stage('Debug index.html en imagen') {
+            steps {
+                sh '''
+                echo "Buscando el botón dentro de la imagen poc-calculator:latest..."
+                docker run --rm poc-calculator:latest \
+                  sh -c "grep -R 'button id=\"four\"' -n . || echo 'No se encontró en la imagen'"
+                '''
             }
         }
 
         stage('Run app container') {
             steps {
                 script {
-                    // Por si hubiera un contenedor viejo colgado
                     sh 'docker stop poc-calculator || true'
 
                     sh """
@@ -111,6 +129,22 @@ pipeline {
                 }
             }
         }
+
+        // Debug en contenedor + curl HTTP
+        stage('Debug index.html en contenedor y respuesta HTTP') {
+            steps {
+                sh '''
+                echo "===== Contenido dentro del CONTENEDOR ====="
+                docker exec poc-calculator \
+                  sh -c "grep -R 'button id=\"four\"' -n . || echo 'No se encontró en contenedor'"
+
+                echo ""
+                echo "===== Contenido en RESPUESTA HTTP (curl) ====="
+                curl -s http://localhost:8081 | grep -n 'button id="four"' || echo "No se encontró en la respuesta HTTP"
+                '''
+            }
+        }
+
     }
 
     post {
@@ -118,11 +152,11 @@ pipeline {
             sh 'docker stop poc-calculator || true'
 
             cleanWs(cleanWhenNotBuilt: false,
-                    deleteDirs: true,
-                    disableDeferredWipeout: true,
-                    notFailBuild: true,
-                    patterns: [[pattern: '.gitignore', type: 'INCLUDE'],
-                               [pattern: '.propsfile', type: 'EXCLUDE']])
+                deleteDirs: true,
+                disableDeferredWipeout: true,
+                notFailBuild: true,
+                patterns: [[pattern: '.gitignore', type: 'INCLUDE'],
+                           [pattern: '.propsfile', type: 'EXCLUDE']])
         }
     }
 }
