@@ -43,6 +43,16 @@ pipeline {
             }
         }
 
+        stage('Debug index.html en workspace') {
+    steps {
+        sh '''
+        echo "Contenido del botón en public/index.html:"
+        grep -n "button id=\\"four\\"" public/index.html || echo "No se encontró el botón en public/index.html"
+        '''
+    }
+}
+
+
         stage('Info código') {
             steps {
                 sh '''
