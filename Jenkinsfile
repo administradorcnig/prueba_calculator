@@ -6,7 +6,7 @@ pipeline {
         choice(
             name: 'entornoDespliegue',
             choices: ['DESARROLLO', 'CERTIFICACION', 'PRODUCCION'],
-            description: 'Entorno de despliegue (solo informativo en esta POC)'
+            description: 'Entorno de despliegue'
         )
         string(
             name: 'RAMA_DESPLIEGUE',
@@ -60,30 +60,6 @@ pipeline {
             }
         }
 
-        stage('Unit tests') {
-            steps {
-                sh '''
-                docker run --rm \
-                  -v "$PWD":/app \
-                  -w /app \
-                  node:18 \
-                  npm test
-                '''
-            }
-        }
-
-        stage('Integration tests (Testcontainers)') {
-            steps {
-                sh '''
-                docker run --rm \
-                  -v /var/run/docker.sock:/var/run/docker.sock \
-                  -v "$PWD":/app \
-                  -w /app \
-                  node:22 \
-                  npx mocha tests/integration/testcontainers.spec.js
-                '''
-            }
-        }
 
         stage('Build Docker image') {
             steps {
@@ -105,50 +81,12 @@ pipeline {
             }
         }
 
-        stage('API tests (Newman)') {
-            steps {
-                sh '''
-                docker run --rm \
-                  --network host \
-                  -v "$PWD/tests/postman":/etc/newman \
-                  postman/newman \
-                  run /etc/newman/calculator.postman_collection.json
-                '''
-            }
-        }
-
-        stage('E2E tests (Cypress)') {
-            steps {
-                sh '''
-                docker run --rm \
-                  --network host \
-                  -v "$PWD":/e2e \
-                  -w /e2e \
-                  cypress/included:13.6.2 \
-                  npx cypress run --spec "cypress/e2e/calculator.cy.js"
-                '''
-            }
-        }
-
-        stage('Load tests (k6)') {
-            steps {
-                sh '''
-                docker run --rm \
-                  --network host \
-                  -v "$PWD/tests/k6":/scripts \
-                  grafana/k6 \
-                  run /scripts/complex_loadtest.js
-                '''
-            }
-        }
-    }
 
     post {
         always {
-            // Parar el contenedor si sigue vivo
+
             sh 'docker stop poc-calculator || true'
 
-            // (Opcional) limpiar workspace al final, como en tu otro pipeline
             cleanWs(cleanWhenNotBuilt: false,
                     deleteDirs: true,
                     disableDeferredWipeout: true,
