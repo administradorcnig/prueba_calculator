@@ -1,7 +1,37 @@
 pipeline {
     agent any
 
+    parameters {
+        // Campo de texto para escribir la rama de GitHub
+        string(
+            name: 'GIT_BRANCH',
+            defaultValue: 'main',
+            description: 'Escribe la rama de GitHub desde la que quieres desplegar (ej: main, develop, feature/xyz)'
+        )
+
+        // Entorno de despliegue (solo visual, sigue siendo un desplegable)
+        choice(
+            name: 'DEPLOY_ENV',
+            choices: 'dev\npre\nprod',
+            description: 'Selecciona el entorno de despliegue (solo informativo)'
+        )
+    }
+
     stages {
+
+        stage('Checkout código') {
+            steps {
+                script {
+                    echo "Rama seleccionada: ${params.GIT_BRANCH}"
+                    echo "Entorno seleccionado: ${params.DEPLOY_ENV}"
+
+                    // Ajusta la URL del repo y credenciales si hace falta
+                    git branch: "${params.GIT_BRANCH}",
+                        url: 'https://github.com/tu-organizacion/tu-repo.git'
+                }
+            }
+        }
+
         stage('Install dependencies') {
             steps {
                 sh '''
@@ -88,17 +118,16 @@ pipeline {
         }
 
         stage('Load tests (k6)') {
-    steps {
-        sh '''
-        docker run --rm \
-          --network host \
-          -v "$PWD/tests/k6":/scripts \
-          grafana/k6 \
-          run /scripts/complex_loadtest.js
-        '''
-    }
-}
-
+            steps {
+                sh '''
+                docker run --rm \
+                  --network host \
+                  -v "$PWD/tests/k6":/scripts \
+                  grafana/k6 \
+                  run /scripts/complex_loadtest.js
+                '''
+            }
+        }
     }
 
     post {
