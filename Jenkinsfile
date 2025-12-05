@@ -1,33 +1,46 @@
+/* groovylint-disable VariableTypeRequired */
 pipeline {
     agent any
 
     parameters {
-        // Campo de texto para escribir la rama de GitHub
-        string(
-            name: 'GIT_BRANCH',
-            defaultValue: 'main',
-            description: 'Escribe la rama de GitHub desde la que quieres desplegar (ej: main, develop, feature/xyz)'
-        )
-
-        // Entorno de despliegue (solo visual, sigue siendo un desplegable)
         choice(
-            name: 'DEPLOY_ENV',
-            choices: 'dev\npre\nprod',
-            description: 'Selecciona el entorno de despliegue (solo informativo)'
+            name: 'entornoDespliegue',
+            choices: ['DESARROLLO', 'CERTIFICACION', 'PRODUCCION'],
+            description: 'Entorno de despliegue (solo informativo en esta POC)'
+        )
+        string(
+            name: 'RAMA_DESPLIEGUE',
+            defaultValue: 'develop',
+            description: 'Rama desde la que se desplegará (ej: main, develop, feature/xyz)'
         )
     }
 
-    stages {
+    options {
+        // Nos saltamos el checkout por defecto ya que vamos a eliminar el workspace
+        skipDefaultCheckout(true)
+    }
 
-        stage('Checkout código') {
+    environment {
+        // Nombre del proyecto/repositorio de GitHub
+        // Ajusta esto si tu repo se llama distinto
+        project = 'calculadora-poc'
+    }
+
+    stages {
+        stage('Checkout desde GitHub') {
             steps {
                 script {
-                    echo "Rama seleccionada: ${params.GIT_BRANCH}"
-                    echo "Entorno seleccionado: ${params.DEPLOY_ENV}"
+                    // Limpiamos el workspace
+                    cleanWs()
 
-                    // Ajusta la URL del repo y credenciales si hace falta
-                    git branch: "${params.GIT_BRANCH}",
-                        url: 'https://github.com/tu-organizacion/tu-repo.git'
+                    echo "Rama seleccionada: ${params.RAMA_DESPLIEGUE}"
+                    echo "Entorno seleccionado: ${params.entornoDespliegue}"
+
+                    // Descargar el repositorio desde GitHub
+                    // Usa tus credenciales 'administradorCNIG' como en el ejemplo que te funciona
+                    git branch: params.RAMA_DESPLIEGUE,
+                        credentialsId: 'administradorCNIG',
+                        url: "https://github.com/administradorcnig/${project}.git"
                 }
             }
         }
@@ -132,7 +145,16 @@ pipeline {
 
     post {
         always {
+            // Parar el contenedor si sigue vivo
             sh 'docker stop poc-calculator || true'
+
+            // (Opcional) limpiar workspace al final, como en tu otro pipeline
+            cleanWs(cleanWhenNotBuilt: false,
+                    deleteDirs: true,
+                    disableDeferredWipeout: true,
+                    notFailBuild: true,
+                    patterns: [[pattern: '.gitignore', type: 'INCLUDE'],
+                               [pattern: '.propsfile', type: 'EXCLUDE']])
         }
     }
 }
