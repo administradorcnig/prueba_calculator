@@ -23,7 +23,7 @@ pipeline {
     environment {
         // Nombre del proyecto/repositorio de GitHub
         // Ajusta esto si tu repo se llama distinto
-        project = 'calculadora-poc'
+        project = 'prueba_calculator'
     }
 
     stages {
